@@ -1,0 +1,44 @@
+@page "/report"
+
+@using Microsoft.AspNetCore.Identity
+@using MudBlazor
+@using Microsoft.AspNetCore.Authorization
+@using WorkTrackingApp.Data
+@using WorkTrackingApp.Data.Models
+
+@attribute [Authorize]
+@inject WorkTrackingApp.Services.WorkItemService WorkItemService
+@inject UserManager<ApplicationUser> UserManager
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<MudText Typo="Typo.h4" Class="mb-4">Work Items by Category Report</MudText>
+<MudText Typo="Typo.subtitle1" Class="mb-2" GutterBottom="true"> Week of @DateTime.Now.ToString("MMMM dd, yyyy")</MudText>
+<MudDataGrid Items="@workItems" Dense="true" Bordered="true" Filterable="true" Sortable="true" PageSize="10" ShowPager="true" ShowSearch="true" ShowColumnMenu="true">
+    <Columns>
+        <PropertyColumn Property="x => x.Name" Title="Name" />
+        <PropertyColumn Property="x => x.WorkItemType.Name" Title="Type" />
+        <PropertyColumn Property="x => x.WorkItemCategory.Name" Grouping="true" Groupable="true" GroupExpanded="true" Title="Category" Hidden="true">
+            <GroupTemplate>
+                <MudText Typo="Typo.subtitle1">@context.Grouping.Key</MudText>
+            </GroupTemplate>
+        </PropertyColumn>
+        <PropertyColumn Property="x => x.StartDateTime" Title="Start" InitialDirection="SortDirection.Ascending" Format="dddd hh:mm tt" />
+        <PropertyColumn Property="x => x.FinishDateTime" Title="Finish" Format="dddd hh:mm tt" />
+    </Columns>
+</MudDataGrid>
+
+@code { 
+// GroupBy="x => x.WorkItemCategory.Name"    
+    private IEnumerable<WorkItem> workItems = new List<WorkItem>();
+
+    private string currentUserId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        var appUser = await UserManager.GetUserAsync(user);
+        currentUserId = await UserManager.GetUserIdAsync(appUser);
+        workItems = await WorkItemService.GetAllByUserIdAndCurrentWeekAsync(currentUserId);
+    }
+}

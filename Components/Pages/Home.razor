@@ -1,0 +1,66 @@
+﻿@page "/"
+
+@using Microsoft.AspNetCore.Authorization
+@using WorkTrackingApp.Data.Models
+@using WorkTrackingApp.Services
+
+@attribute [Authorize]
+
+@inject WorkItemService WorkItemService
+
+<PageTitle>Home</PageTitle>
+
+<MudText Typo="Typo.h3" GutterBottom="true">Work Tracking App</MudText>
+
+<MudGrid>
+        <MudItem xs="12" sm="6" md="4">
+            <MudPaper Elevation="2" Class="pa-4" Style="height: 200px;">1</MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="4">
+            <MudPaper Elevation="2" Class="pa-4" Style="height: 200px;">2</MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="12" md="4">
+            <MudPaper Elevation="2" Class="pa-4" Style="height: 200px;">3</MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="6">
+            <MudPaper Elevation="2" Class="pa-4" Style="height: 100%">
+                <MudChart ChartType="ChartType.Pie" InputData="@data" @bind-SelectedIndex="Index" InputLabels="@labels" Width="300px" Height="300px" />
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="6">
+        </MudItem>
+        <MudItem xs="12" sm="6" md="4">
+            <MudPaper Elevation="2" Class="pa-4" Style="height: 200px;">7</MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="4">
+            <MudPaper Elevation="2" Class="pa-4" Style="height: 200px;">8</MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="12" md="4">
+            <MudPaper Elevation="2" Class="pa-4" Style="height: 200px;">9</MudPaper>
+        </MudItem>
+    </MudGrid>
+@code {
+    private int Index = -1; //default value cannot be 0 -> first selectedindex is 0.
+    int dataSize = 2;
+    double[] data = { 77, 23 };
+    string[] labels = { "Activity", "Administration" };
+
+    Random random = new Random();
+
+    void RandomizeData()
+    {
+        var new_data = new double[dataSize];
+        for (int i = 0; i < new_data.Length; i++)
+            new_data[i] = random.NextDouble() * 100;
+        data = new_data;
+        StateHasChanged();
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        //var workItems = await WorkItemService.GetAllAsync();
+        // Optionally, you can call RandomizeData() here if you want to initialize with random data.
+        // RandomizeData();
+    }
+}
+

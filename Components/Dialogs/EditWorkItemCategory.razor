@@ -1,0 +1,33 @@
+@using WorkTrackingApp.Data.Models
+@using MudBlazor
+
+<MudDialog>
+    <DialogContent>
+        <MudTextField @bind-Value="Category.Name" Label="Name" />
+        <MudTextField @bind-Value="Category.Description" Label="Description" />
+        <MudCheckBox @bind-Value="Category.IsActive" Label="Is Active" />
+        <MudDatePicker Date="Category.CreatedDateTime"
+                       DateChanged="@(date => Category.CreatedDateTime = date ?? DateTime.Now)"
+                       DateExpression="@(() => Category.CreatedDateTime)"
+                       Label="Created Date" Disabled="true" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Save" Color="Color.Primary">Save</MudButton>
+        <MudButton OnClick="Cancel" Color="Color.Secondary">Cancel</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance DialogReference { get; set; } = default!;
+    [Parameter] public WorkItemCategory Category { get; set; }
+
+    private void Save()
+    {
+        DialogReference?.Close(DialogResult.Ok(Category));
+    }
+
+    private void Cancel()
+    {
+        DialogReference?.Close(DialogResult.Cancel());
+    }
+}

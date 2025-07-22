@@ -1,0 +1,57 @@
+@using WorkTrackingApp.Data
+@using WorkTrackingApp.Data.Models
+@using MudBlazor
+
+<MudDialog>
+    <DialogContent>
+        <MudText Typo="Typo.h6">Edit Roles for @User.UserName</MudText>
+        <MudSelect T="string" Label="Roles" SelectedValues="@_selectedRoles" SelectedValuesChanged="OnSelectedRolesChanged" MultiSelection="true">
+            @foreach (var role in AllRoles)
+            {
+                <MudSelectItem Value="@role">@role</MudSelectItem>
+            }
+        </MudSelect>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Save" Color="Color.Primary">Save</MudButton>
+        <MudButton OnClick="Cancel" Color="Color.Secondary">Cancel</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance DialogReference { get; set; } = default!;
+    [Parameter] public ApplicationUser User { get; set; }
+    [Parameter] public List<string> AllRoles { get; set; }
+    [Parameter] public List<string> UserRoles { get; set; }
+
+    private List<string> _selectedRoles = new();
+
+    protected override void OnInitialized()
+    {
+        if (UserRoles != null)
+        {
+            _selectedRoles = UserRoles.ToList();
+        }
+        else
+        {
+            _selectedRoles = new List<string>();
+        }
+    }
+
+   
+    private void Save()
+    {
+        Console.WriteLine($"Saving roles for user: {User.UserName}");
+        Console.WriteLine($"Selected roles: {string.Join(", ", _selectedRoles)}");
+        DialogReference?.Close(DialogResult.Ok(_selectedRoles.ToList()));
+    }
+
+    private void OnSelectedRolesChanged(IEnumerable<string> selected)
+    {
+        _selectedRoles = selected.ToList();
+    }
+    private void Cancel()
+    {
+        DialogReference?.Close(DialogResult.Cancel());
+    }
+}

@@ -1,0 +1,91 @@
+@using Data.Models
+@using MudBlazor
+@inject MudBlazor.IDialogService DialogService
+
+<MudDialog>
+    <DialogContent>
+        <MudTextField @bind-Value="WorkItem.Name" Label="Name" />
+        <MudTextField @bind-Value="WorkItem.Description" Label="Description" />
+
+        <MudCheckBox @bind-Value="WorkItem.IsCompleted" Label="Is Completed" />
+
+        <MudSelect T="WorkItemType" Label="Work Item Type" @bind-Value="WorkItem.WorkItemType">
+            @foreach (var type in WorkItemTypes)
+            {
+                <MudSelectItem Value="type">@type.Name</MudSelectItem>
+            }
+        </MudSelect>
+        <MudSelect T="WorkItemCategory" Label="Work Item Category" @bind-Value="WorkItem.WorkItemCategory">
+            @foreach (var category in WorkItemCategories)
+            {
+                <MudSelectItem Value="category">@category.Name</MudSelectItem>
+            }
+        </MudSelect>
+        <MudSelect T="WorkItemStatus" Label="Work Item Status" @bind-Value="WorkItem.WorkItemStatus">
+            @foreach (var status in WorkItemStatuses)
+            {
+                <MudSelectItem Value="status">@status.Name</MudSelectItem>
+            }
+        </MudSelect>
+        <MudDatePicker Date="WorkItem.CreatedDateTime"
+                       DateChanged="@(date => WorkItem.CreatedDateTime = date ?? DateTime.Now)"
+                       DateExpression="@(() => WorkItem.CreatedDateTime)"
+                       Label="Created Date" />
+
+        <MudDatePicker @bind-Date="_startDate" Label="Start Date" />
+        <MudTimePicker @bind-Time="_startTime" Label="Start Time" />
+        <MudDatePicker @bind-Date="_finishDate" Label="Finish Date" />
+        <MudTimePicker @bind-Time="_finishTime" Label="Finish Time" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Save" Color="Color.Primary">Save</MudButton>
+        <MudButton OnClick="Cancel" Color="Color.Secondary">Cancel</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance DialogReference { get; set; } = default!;
+    [Parameter] public WorkItem WorkItem { get; set; }
+    [Parameter] public List<WorkItemType> WorkItemTypes { get; set; }
+    [Parameter] public List<WorkItemCategory> WorkItemCategories { get; set; }
+    [Parameter] public List<WorkItemStatus> WorkItemStatuses { get; set; }
+
+    private DateTime? _startDate;
+    private TimeSpan? _startTime;
+    private DateTime? _finishDate;
+    private TimeSpan? _finishTime;
+
+    protected override void OnInitialized()
+    {
+        if (WorkItem.StartDateTime.HasValue)
+        {
+            _startDate = WorkItem.StartDateTime.Value.Date;
+            _startTime = WorkItem.StartDateTime.Value.TimeOfDay;
+        }
+        if (WorkItem.FinishDateTime.HasValue)
+        {
+            _finishDate = WorkItem.FinishDateTime.Value.Date;
+            _finishTime = WorkItem.FinishDateTime.Value.TimeOfDay;
+        }
+    }
+
+    private void Save()
+    {
+        if (_startDate.HasValue && _startTime.HasValue)
+            WorkItem.StartDateTime = _startDate.Value.Date + _startTime.Value;
+        else
+            WorkItem.StartDateTime = null;
+
+        if (_finishDate.HasValue && _finishTime.HasValue)
+            WorkItem.FinishDateTime = _finishDate.Value.Date + _finishTime.Value;
+        else
+            WorkItem.FinishDateTime = null;
+
+        DialogReference?.Close(DialogResult.Ok(WorkItem));
+    }
+
+    private void Cancel()
+    {
+        DialogReference?.Close(DialogResult.Cancel());
+    }
+}

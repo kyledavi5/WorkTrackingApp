@@ -1,0 +1,109 @@
+@page "/usermanagement"
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.AspNetCore.Authorization
+@using WorkTrackingApp.Data
+@using MudBlazor
+@using WorkTrackingApp.Components.Dialogs
+
+@attribute [Authorize(Roles = "Admin")]
+
+@inject UserManager<ApplicationUser> UserManager
+@inject RoleManager<IdentityRole> RoleManager
+@inject IDialogService DialogService
+
+<MudText Typo="Typo.h4" Class="mb-4">User Management</MudText>
+
+@if (_isLoading)
+{
+    <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+}
+else
+{
+    <MudTable Items="_users" Hover="true" Bordered="true">
+        <HeaderContent>
+            <MudTh>User Name</MudTh>
+            <MudTh>Email</MudTh>
+            <MudTh>Roles</MudTh>
+            <MudTh>Actions</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.UserName</MudTd>
+            <MudTd>@context.Email</MudTd>
+            <MudTd>
+                @foreach (var role in _userRoles[context.Id])
+                {
+                    <MudChip T="string" Color="Color.Info" Class="mr-1">@role</MudChip>
+                }
+            </MudTd>
+            <MudTd>
+                <MudButton Variant="Variant.Text" Color="Color.Primary" OnClick="@(() => OpenRoleDialog(context))">Edit Roles</MudButton>
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+}
+
+@code {
+    private List<ApplicationUser> _users = new();
+    private Dictionary<string, List<string>> _userRoles = new();
+    private bool _isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _isLoading = true;
+        _users = UserManager.Users.ToList();
+        foreach (var user in _users)
+        {
+            var roles = await UserManager.GetRolesAsync(user);
+            _userRoles[user.Id] = roles.ToList();
+        }
+        _isLoading = false;
+    }
+
+    private async Task OpenRoleDialog(ApplicationUser user)
+    {
+        var allRoles = RoleManager.Roles.Select(r => r.Name).ToList();
+        var userRoles = await UserManager.GetRolesAsync(user);
+
+        var parameters = new DialogParameters
+        {
+            ["User"] = user,
+            ["AllRoles"] = allRoles,
+            ["UserRoles"] = userRoles.ToList()
+        };
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<EditUserRolesDialog>("Edit Roles", parameters, options);
+        var result = await dialog.Result;
+        if (result != null && !result.Canceled && result.Data is List<string> updatedRoles)
+        {
+            // Remove all roles, then add selected
+            var currentRoles = await UserManager.GetRolesAsync(user);
+            var removeResult = await UserManager.RemoveFromRolesAsync(user, currentRoles);
+            if (!removeResult.Succeeded)
+            {
+                // Handle error (e.g., show message)
+                Console.WriteLine("Failed to remove roles from user.");
+                return;
+            }
+            var addResult = await UserManager.AddToRolesAsync(user, updatedRoles);
+            if (addResult.Succeeded && updatedRoles.Count > 0 && updatedRoles != null)
+            {
+                Console.WriteLine($"Roles updated for user {user.UserName}.");
+                Console.WriteLine($"Added roles: {string.Join(", ", updatedRoles)}");
+            }
+            else 
+            {
+                // Handle error (e.g., show message)
+                Console.WriteLine("Failed to add roles to user.");
+                return;
+            }
+            // Update local user roles cache
+            _userRoles[user.Id] = updatedRoles;
+
+            // Reload roles from UserManager to ensure latest data
+            var refreshedUser = await UserManager.FindByIdAsync(user.Id);
+            var refreshedRoles = await UserManager.GetRolesAsync(refreshedUser);
+            _userRoles[user.Id] = refreshedRoles.ToList();
+            StateHasChanged();
+        }
+    }
+}

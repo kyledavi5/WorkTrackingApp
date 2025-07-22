@@ -1,0 +1,137 @@
+@using Data.Models
+@using MudBlazor
+@using Microsoft.AspNetCore.Components.Authorization
+@inject MudBlazor.IDialogService DialogService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<MudDialog>
+    <DialogContent>
+        <MudPaper Class="pa-4">
+            <MudText Typo="Typo.h6">General Info</MudText>
+            <MudTextField @bind-Value="NewWorkItem.Name" Label="Name" Required="true" For="@(() => NewWorkItem.Name)" HelperText="Enter a descriptive name." />
+            <MudTextField @bind-Value="NewWorkItem.Description" Label="Description" Lines="3" HelperText="Optional: Add details." />
+
+            <MudCheckBox @bind-Value="NewWorkItem.IsCompleted" Label="Is Completed" />
+
+            <MudDivider Class="my-2" />
+
+            <MudText Typo="Typo.h6">Classification</MudText>
+            <MudGrid>
+                <MudItem xs="12" sm="4">
+                    <MudSelect T="WorkItemCategory" Label="Category" @bind-Value="NewWorkItem.WorkItemCategory" Required="true">
+                        @foreach (var category in WorkItemCategories)
+                        {
+                            <MudSelectItem Value="category">@category.Name</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" sm="4">
+                    <MudSelect T="WorkItemType" Label="Type" @bind-Value="NewWorkItem.WorkItemType" Required="true">
+                        @foreach (var type in WorkItemTypes)
+                        {
+                            <MudSelectItem Value="type">@type.Name</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" sm="4">
+                    <MudSelect T="WorkItemStatus" Label="Status" @bind-Value="NewWorkItem.WorkItemStatus" Required="true">
+                        @foreach (var status in WorkItemStatuses)
+                        {
+                            <MudSelectItem Value="status">@status.Name</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+            </MudGrid>
+
+            <MudDivider Class="my-2" />
+
+            <MudText Typo="Typo.h6">Timing</MudText>
+            <MudGrid>
+                <MudItem xs="12" sm="6">
+                    <MudDatePicker @bind-Date="_startDate" Label="Start Date" HelperText="When work begins." />
+                    <MudTimePicker @bind-Time="_startTime" Label="Start Time" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudDatePicker @bind-Date="_finishDate" Label="Finish Date" HelperText="When work ends." />
+                    <MudTimePicker @bind-Time="_finishTime" Label="Finish Time" />
+                </MudItem>
+            </MudGrid>
+        </MudPaper>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Save" Color="Color.Primary" Disabled="@(!IsValid())">Save</MudButton>
+        <MudButton OnClick="Cancel" Color="Color.Secondary">Cancel</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance DialogReference { get; set; } = default!;
+    [Parameter] public WorkItem NewWorkItem { get; set; }
+    [Parameter] public List<WorkItemType> WorkItemTypes { get; set; }
+    [Parameter] public List<WorkItemCategory> WorkItemCategories { get; set; }
+    [Parameter] public List<WorkItemStatus> WorkItemStatuses { get; set; }
+    private DateTime? _startDate;
+    private TimeSpan? _startTime;
+    private DateTime? _finishDate;
+    private TimeSpan? _finishTime;
+
+    protected override void OnInitialized()
+    {
+        if (NewWorkItem.StartDateTime.HasValue)
+        {
+            _startDate = NewWorkItem.StartDateTime.Value.Date;
+            _startTime = NewWorkItem.StartDateTime.Value.TimeOfDay;
+        }
+        else
+        {
+            _startDate = DateTime.Now.Date;
+            _startTime = DateTime.Now.TimeOfDay;
+        }
+        if (NewWorkItem.FinishDateTime.HasValue)
+        {
+            _finishDate = NewWorkItem.FinishDateTime.Value.Date;
+            _finishTime = NewWorkItem.FinishDateTime.Value.TimeOfDay;
+        }
+    }
+
+    private async void Save()
+    {
+        if (_startDate.HasValue && _startTime.HasValue)
+            NewWorkItem.StartDateTime = _startDate.Value.Date + _startTime.Value;
+        else
+            NewWorkItem.StartDateTime = null;
+
+        if (_finishDate.HasValue && _finishTime.HasValue)
+            NewWorkItem.FinishDateTime = _finishDate.Value.Date + _finishTime.Value;
+        else
+            NewWorkItem.FinishDateTime = null;
+
+        // Get current user id and set it on the WorkItem
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        if (user.Identity?.IsAuthenticated == true)
+        {
+            // Try to get the NameIdentifier claim (usually the user id)
+            var userId = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (!string.IsNullOrEmpty(userId))
+            {
+                NewWorkItem.ApplicationUserId = userId;
+            }
+        }
+
+        DialogReference?.Close(DialogResult.Ok(NewWorkItem));
+    }
+
+    private void Cancel()
+    {
+        DialogReference?.Close(DialogResult.Cancel());
+    }
+
+    private bool IsValid()
+    {
+        return !string.IsNullOrWhiteSpace(NewWorkItem.Name)
+            && NewWorkItem.WorkItemCategory != null
+            && NewWorkItem.WorkItemType != null
+            && NewWorkItem.WorkItemStatus != null;
+    }
+}

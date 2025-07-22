@@ -1,0 +1,182 @@
+@page "/workitems"
+
+@using Data.Models
+@using MudBlazor
+@using WorkTrackingApp.Data
+@using WorkTrackingApp.Data.Models
+@using WorkTrackingApp.Services
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.AspNetCore.Authorization
+
+@attribute [Authorize]
+
+@inject UserManager<ApplicationUser> UserManager
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IDialogService DialogService
+@inject WorkItemService WorkItemService
+@inject WorkItemTypeService WorkItemTypeService
+@inject WorkItemCategoryService WorkItemCategoryService
+@inject WorkItemStatusService WorkItemStatusService
+
+<MudText Typo="Typo.h4" GutterBottom="true">Work Items</MudText>
+
+<MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Add" OnClick="OpenCreateDialog" Class="mb-4" Disabled="@(workItemCategories == null || !workItemCategories.Any())">New
+</MudButton>
+
+<MudDataGrid T="WorkItem"
+    Items="@workItems"
+    ReadOnly="false"
+    EditMode="DataGridEditMode.Form"
+    FilterMode="DataGridFilterMode.ColumnFilterRow"
+    Bordered="true"
+    Dense="true"
+    EditTrigger="DataGridEditTrigger.Manual"
+    Filterable="true"
+    Sortable="true"
+    PageSize="5"
+    ShowFilterRow="false"
+    ShowPager="true"
+    ShowSearch="true"
+    ShowColumnMenu="true"
+    MultiSelection="true"
+    SelectedItemsChanged="OnSelectedItemsChanged"
+    Loading="@_isLoading"
+    ExportButton="true"
+    ShowColumnOptions="true"
+    ExportEnabled="true"
+    ExportFileName="WorkItems.csv"
+    DragDropColumnReordering="true"
+    ColumnResizeMode="ResizeMode.Column"
+    Groupable="true">
+
+    <Columns>
+        <PropertyColumn Property="x => x.Name" Title="Title" Filterable="true" Sortable="true" />
+        <PropertyColumn Property="x => x.WorkItemCategory.Name" Title="Category" Filterable="true" Sortable="true" />
+        <PropertyColumn Property="x => x.WorkItemType.Name" Title="Type" Filterable="true" Sortable="true" />
+        
+        <PropertyColumn Property="x => x.IsCompleted" Title="Completed" Filterable="true" Sortable="true" />
+        <PropertyColumn Property="x => x.StartDateTime" Title="Start" Format="dddd hh:mm tt" Sortable="true" />
+        <PropertyColumn Property="x => x.FinishDateTime" Title="Finish" Format="dddd hh:mm tt" Sortable="true" />
+
+        <TemplateColumn Hidden="@(_isCellEditMode)" CellClass="d-flex justify-end">
+            <CellTemplate>
+                <MudIconButton Size="@Size.Small" Icon="@Icons.Material.Outlined.Edit" OnClick="@(() => OpenEditDialog(context.Item))" />
+                <MudIconButton Size="@Size.Small" Icon="@Icons.Material.Outlined.Delete" Color="Color.Error" OnClick="@(() => DeleteWorkItem(context.Item))" />
+            </CellTemplate>
+        </TemplateColumn>
+    </Columns>
+    <PagerContent>
+        <MudDataGridPager T="WorkItem" />
+    </PagerContent>
+</MudDataGrid>
+
+@code {
+    private IEnumerable<WorkItem> workItems = new List<WorkItem>();
+    private IEnumerable<WorkItemCategory> workItemCategories = new List<WorkItemCategory>();
+    private IEnumerable<WorkItemType> workItemTypes = new List<WorkItemType>();
+    private IEnumerable<WorkItemStatus> workItemStatuses = new List<WorkItemStatus>();
+    private bool _isCellEditMode = false;
+    private HashSet<WorkItem> selectedItems = new();
+    private bool _isLoading = false;
+    private string currentUserId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _isLoading = true;
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        var appUser = await UserManager.GetUserAsync(user);
+        currentUserId = await UserManager.GetUserIdAsync(appUser);
+        await PopulateWorkItems();
+        await PopulateWorkItemTypes();
+        await PopulateWorkItemCategories();
+        await PopulateWorkItemStatuses();
+        _isLoading = false;
+    }
+
+    private async Task PopulateWorkItemTypes()
+    {
+        workItemTypes = await WorkItemTypeService.GetAllAsync();
+    }
+
+    private async Task PopulateWorkItemCategories()
+    {
+        workItemCategories = await WorkItemCategoryService.GetAllActiveByUserIdAsync(currentUserId);
+    }
+
+    private async Task PopulateWorkItemStatuses()
+    {
+        workItemStatuses = await WorkItemStatusService.GetAllAsync();
+    }
+    private async Task PopulateWorkItems()
+    {
+        _isLoading = true;
+        workItems = await WorkItemService.GetAllByUserIdAsync(currentUserId);
+        _isLoading = false;
+        StateHasChanged();
+    }
+
+    
+
+    private async Task OpenEditDialog(WorkItem item)
+    {
+        var parameters = new DialogParameters
+        {
+            ["WorkItem"] = item,
+            ["WorkItemTypes"] = workItemTypes,
+            ["WorkItemCategories"] = workItemCategories,
+            ["WorkItemStatuses"] = workItemStatuses
+        };
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true, };
+        var dialogReference = await DialogService.ShowAsync<EditWorkItemDialog>("Edit Work Item", parameters, options);
+        var result = await dialogReference.Result;
+        if (result != null && !result.Canceled && result.Data is WorkItem updatedItem)
+        {
+            // Update the work item in the list
+            await WorkItemService.UpdateAsync(updatedItem);
+            await PopulateWorkItems();
+        }
+    }
+
+    private async Task OpenCreateDialog()
+    {
+        var newWorkItem = new WorkItem();
+        newWorkItem.ApplicationUserId = currentUserId;
+
+        var parameters = new DialogParameters
+        {
+            ["NewWorkItem"] = newWorkItem,
+            ["WorkItemTypes"] = workItemTypes,
+            ["WorkItemCategories"] = workItemCategories,
+            ["WorkItemStatuses"] = workItemStatuses
+        };
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true, BackdropClick = false };
+        var dialogReference = await DialogService.ShowAsync<CreateWorkItemDialog>("New Work Item", parameters, options);
+        var result = await dialogReference.Result;
+        if (result != null && !result.Canceled && result.Data is WorkItem createdItem)
+        {
+            await WorkItemService.AddAsync(createdItem);
+            await PopulateWorkItems();
+        }
+    }
+
+    private async Task DeleteWorkItem(WorkItem item)
+    {
+        bool confirmed = await DialogService.ShowMessageBox(
+            "Delete Work Item",
+            $"Are you sure you want to delete \"{item.Name}\"?",
+            yesText: "Delete", cancelText: "Cancel", options: new DialogOptions { MaxWidth = MaxWidth.ExtraSmall, FullWidth = true }
+        ) == true;
+
+        if (confirmed)
+        {
+            await WorkItemService.DeleteAsync(item.Id);
+            await PopulateWorkItems();
+        }
+    }
+
+    private void OnSelectedItemsChanged(HashSet<WorkItem> items)
+    {
+        selectedItems = items;
+    }
+}

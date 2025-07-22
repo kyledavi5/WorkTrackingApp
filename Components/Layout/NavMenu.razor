@@ -1,0 +1,62 @@
+﻿@implements IDisposable
+
+@inject NavigationManager NavigationManager
+
+<MudNavMenu> 
+    <AuthorizeView>
+        <Authorized>
+            <MudNavLink Href="" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Dashboard">Dashboard</MudNavLink>
+            <MudNavLink Href="workitems" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.ListAlt">Work Items</MudNavLink>
+            <MudNavLink Href="workitemcategories" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Category">Categories</MudNavLink>
+            <MudNavGroup Title="Reports" Icon="@Icons.Material.Filled.BarChart">
+                <MudNavLink Href="report" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.AddChart">Category Report</MudNavLink>
+                <MudNavLink Href="report-by-day" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.DateRange">Week Report</MudNavLink>  
+            </MudNavGroup>
+
+            @if (@context.User.IsInRole("Admin"))
+            {
+                <MudNavGroup Title="Settings" Icon="@Icons.Material.Filled.Settings">
+                    <MudNavLink Href="workitemstatuses" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.CheckCircle">Statuses</MudNavLink>
+                    <MudNavLink Href="workitemtypes" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.List">Types</MudNavLink>
+                    <MudNavLink Href="usermanagement" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Group">User Management</MudNavLink>
+                    <MudNavLink Href="Account/Register" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.PersonAdd">Register</MudNavLink>
+                </MudNavGroup>
+            }
+
+            <MudNavLink Href="Account/Manage" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Person">@context.User.Identity?.Name</MudNavLink>
+            <form action="Account/Logout" method="post">
+                <AntiforgeryToken />
+                <input type="hidden" name="ReturnUrl" value="@currentUrl" />
+                <button type="submit" class="mud-nav-link mud-ripple">
+                    <MudIcon Icon="@Icons.Material.Filled.Logout" Color="Color.Info" Class="mr-3"></MudIcon> Logout
+                </button>
+            </form>
+        </Authorized>
+         <NotAuthorized>
+            
+        </NotAuthorized>
+    </AuthorizeView>
+</MudNavMenu>
+
+
+@code {
+    private string? currentUrl;
+
+    protected override void OnInitialized()
+    {
+        currentUrl = NavigationManager.ToBaseRelativePath(NavigationManager.Uri);
+        NavigationManager.LocationChanged += OnLocationChanged;
+    }
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        currentUrl = NavigationManager.ToBaseRelativePath(e.Location);
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        NavigationManager.LocationChanged -= OnLocationChanged;
+    }
+}
+

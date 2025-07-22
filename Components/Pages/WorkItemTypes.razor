@@ -1,0 +1,92 @@
+@page "/workitemtypes"
+
+@using WorkTrackingApp.Data.Models
+@using WorkTrackingApp.Services
+@using Microsoft.AspNetCore.Authorization
+
+@attribute [Authorize(Roles = "Admin")]
+@inject IDialogService DialogService
+@inject WorkItemTypeService WorkItemTypeService
+
+<MudText Typo="Typo.h3" GutterBottom="true">Work Item Types</MudText>
+<MudText Class="mb-8">Manage your Work Item Types here.</MudText>
+
+<MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Add" OnClick="OpenCreateDialog" Class="mb-4">New
+</MudButton>
+
+<MudDataGrid T="WorkItemType" Items="@workItemTypes" ReadOnly="false" EditMode="DataGridEditMode.Form"
+    Bordered="true" Dense="true" EditTrigger="DataGridEditTrigger.Manual">
+    <Columns>
+        <PropertyColumn Property="x => x.Name" Title="Name" />
+        <TemplateColumn CellClass="d-flex justify-end">
+            <CellTemplate>
+                <MudIconButton Size="@Size.Small" Icon="@Icons.Material.Outlined.Edit" OnClick="@(() => OpenEditDialog(context.Item))" />
+                <MudIconButton Size="@Size.Small" Icon="@Icons.Material.Outlined.Delete" Color="Color.Error" OnClick="@(() => DeleteWorkItemType(context.Item))" />
+            </CellTemplate>
+        </TemplateColumn>
+    </Columns>
+</MudDataGrid>
+
+@code {
+    private IEnumerable<WorkItemType> workItemTypes = new List<WorkItemType>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await PopulateWorkItemTypes();
+    }
+
+    private async Task PopulateWorkItemTypes()
+    {
+        workItemTypes = await WorkItemTypeService.GetAllAsync();
+        StateHasChanged();
+    }
+
+    private async Task OpenEditDialog(WorkItemType item)
+    {
+        var parameters = new DialogParameters
+        {
+            ["WorkItemType"] = item
+        };
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialogReference = await DialogService.ShowAsync<EditWorkItemTypeDialog>("Edit Work Item Type", parameters, options);
+        var result = await dialogReference.Result;
+        if (result != null && !result.Canceled && result.Data is WorkItemType updatedItem)
+        {
+            await WorkItemTypeService.UpdateAsync(updatedItem);
+            await PopulateWorkItemTypes();
+        }
+    }
+
+    private async Task OpenCreateDialog()
+    {
+        var newWorkItemType = new WorkItemType();
+
+        var parameters = new DialogParameters
+        {
+            ["WorkItemType"] = newWorkItemType
+        };
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialogReference = await DialogService.ShowAsync<CreateWorkItemTypeDialog>("New Work Item Type", parameters, options);
+        var result = await dialogReference.Result;
+        if (result != null && !result.Canceled && result.Data is WorkItemType createdItem)
+        {
+            await WorkItemTypeService.AddAsync(createdItem);
+            await PopulateWorkItemTypes();
+        }
+    }
+
+    private async Task DeleteWorkItemType(WorkItemType item)
+    {
+        bool confirmed = await DialogService.ShowMessageBox(
+            "Delete Work Item Type",
+            $"Are you sure you want to delete \"{item.Name}\"?",
+            yesText: "Delete", cancelText: "Cancel", options: new DialogOptions { MaxWidth = MaxWidth.ExtraSmall, FullWidth = true }
+        ) == true;
+
+        if (confirmed)
+        {
+            await WorkItemTypeService.DeleteAsync(item.Id);
+            await PopulateWorkItemTypes();
+        }
+    }
+}

@@ -1,0 +1,95 @@
+@page "/workitemstatuses"
+
+@using WorkTrackingApp.Data.Models
+@using WorkTrackingApp.Services
+@using Microsoft.AspNetCore.Authorization
+
+@attribute [Authorize(Roles = "Admin")]
+@inject IDialogService DialogService
+@inject WorkItemStatusService WorkItemStatusService
+
+<MudText Typo="Typo.h3" GutterBottom="true">Work Item Statuses</MudText>
+<MudText Class="mb-8">Manage your Work Item Statuses here.</MudText>
+
+<MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Add" OnClick="OpenCreateDialog" Class="mb-4">New
+</MudButton>
+
+<MudDataGrid T="WorkItemStatus" Items="@workItemStatuses" ReadOnly="false" EditMode="DataGridEditMode.Form"
+    Bordered="true" Dense="true" EditTrigger="DataGridEditTrigger.Manual">
+    <Columns>
+        <PropertyColumn Property="x => x.Name" Title="Name" />
+        <PropertyColumn Property="x => x.Description" Title="Description" />
+        <PropertyColumn Property="x => x.IsActive" Title="Is Active" />
+        <PropertyColumn Property="x => x.CreatedDateTime" Title="Created Date" />
+        <TemplateColumn CellClass="d-flex justify-end">
+            <CellTemplate>
+                <MudIconButton Size="@Size.Small" Icon="@Icons.Material.Outlined.Edit" OnClick="@(() => OpenEditDialog(context.Item))" />
+                <MudIconButton Size="@Size.Small" Icon="@Icons.Material.Outlined.Delete" Color="Color.Error" OnClick="@(() => DeleteWorkItemStatus(context.Item))" />
+            </CellTemplate>
+        </TemplateColumn>
+    </Columns>
+</MudDataGrid>
+
+@code {
+    private IEnumerable<WorkItemStatus> workItemStatuses = new List<WorkItemStatus>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await PopulateWorkItemStatuses();
+    }
+
+    private async Task PopulateWorkItemStatuses()
+    {
+        workItemStatuses = await WorkItemStatusService.GetAllAsync();
+        StateHasChanged();
+    }
+
+    private async Task OpenEditDialog(WorkItemStatus item)
+    {
+        var parameters = new DialogParameters
+        {
+            ["Status"] = item
+        };
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Medium };
+        var dialogReference = await DialogService.ShowAsync<EditWorkItemStatus>("Edit Work Item Status", parameters, options);
+        var result = await dialogReference.Result;
+        if (result != null && !result.Canceled && result.Data is WorkItemStatus updatedItem)
+        {
+            await WorkItemStatusService.UpdateAsync(updatedItem);
+            await PopulateWorkItemStatuses();
+        }
+    }
+
+    private async Task OpenCreateDialog()
+    {
+        var newStatus = new WorkItemStatus();
+
+        var parameters = new DialogParameters
+        {
+            ["NewStatus"] = newStatus
+        };
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small };
+        var dialogReference = await DialogService.ShowAsync<CreateWorkItemStatus>("New Work Item Status", parameters, options);
+        var result = await dialogReference.Result;
+        if (result != null && !result.Canceled && result.Data is WorkItemStatus createdItem)
+        {
+            await WorkItemStatusService.AddAsync(createdItem);
+            await PopulateWorkItemStatuses();
+        }
+    }
+
+    private async Task DeleteWorkItemStatus(WorkItemStatus item)
+    {
+        bool confirmed = await DialogService.ShowMessageBox(
+            "Delete Work Item Status",
+            $"Are you sure you want to delete \"{item.Name}\"?",
+            yesText: "Delete", cancelText: "Cancel", options: new DialogOptions { MaxWidth = MaxWidth.ExtraSmall }
+        ) == true;
+
+        if (confirmed)
+        {
+            await WorkItemStatusService.DeleteAsync(item.Id);
+            await PopulateWorkItemStatuses();
+        }
+    }
+}

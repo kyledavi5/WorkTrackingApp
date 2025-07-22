@@ -1,0 +1,73 @@
+# Build results
+bin/
+obj/
+out/
+*.dll
+*.exe
+*.app
+*.log
+
+# User-specific files
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Rider IDE files
+.idea/
+
+# VS Code files
+.vscode/
+
+# Mac system files
+.DS_Store
+
+# Windows system files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# ASP.NET Scaffolding
+ScaffoldingReadMe.txt
+
+# Entity Framework Migrations
+Migrations/
+
+# NuGet packages
+*.nupkg
+# The packages folder can be ignored if you use PackageReference
+packages/
+# Uncomment if using NuGet < 3.x
+#project.lock.json
+#dnx.lock
+
+# Dotnet user secrets
+secrets.json
+
+# Node modules (if using npm/yarn for frontend)
+node_modules/
+
+# npm package lock
+package-lock.json
+yarn.lock
+
+# Static web assets
+wwwroot/staticwebassets/
+
+# Publish output
+publish/
+*.pubxml
+*.pfx
+
+# Coverage reports
+coverage/
+*.coverage
+*.coveragexml
+
+# Blazor
+
+# SQLite database files
+*.db
+*.db-shm
+*.db-wal
